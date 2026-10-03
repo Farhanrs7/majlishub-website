@@ -50,7 +50,7 @@
                 <a href="#" id="btn-android" class="store-btn">
                     <img src="https://upload.wikimedia.org/wikipedia/commons/d/d0/Google_Play_Arrow_logo.svg" alt="Google Play Logo">
                     <div class="btn-text">
-                        <span>GET IT ON</span>
+                        <span>GET IT NOW</span>
                         <span>Google Play</span>
                     </div>
                 </a>
@@ -130,8 +130,9 @@
 
     <div class="modal-overlay" id="comingSoonModal">
         <div class="modal-content">
-            <h3>Coming Soon! 🚀</h3>
-            <p>This app is currently a work in progress, but we will take your click as motivation to release it as soon as possible. Terima kasih atas sokongan anda!</p>
+            <div style="font-size: 2.8rem; margin-bottom: 8px;">🚀</div>
+            <h3>App Still Under Works!</h3>
+            <p>MajlisHub is currently still under works and in active development. We've recorded your interest and will take your click as great motivation to launch on the App Store & Google Play as soon as possible! Terima kasih atas sokongan anda!</p>
             <button class="close-btn" id="close-modal-btn">Okay, I'll wait!</button>
         </div>
     </div>
@@ -139,7 +140,7 @@
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getFirestore, doc, onSnapshot, setDoc, updateDoc, increment, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { getFirestore, doc, onSnapshot, setDoc, increment, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyDEtHh0CYcAF1F3VufD40dg7RxUgwBD07k",
@@ -155,7 +156,6 @@
     
     // References
     const statsRef = doc(db, "website_stats", "downloads");
-    const appInfoRef = doc(db, "app_info", "details");
 
     const countIosLabel = document.getElementById('count-ios');
     const countAndroidLabel = document.getElementById('count-android');
@@ -168,77 +168,75 @@
 
     // Initialize stats document if missing
     async function initStats() {
-        const docSnap = await getDoc(statsRef);
-        if (!docSnap.exists()) {
-            await setDoc(statsRef, { ios: 0, android: 0 });
+        try {
+            const docSnap = await getDoc(statsRef);
+            if (!docSnap.exists()) {
+                await setDoc(statsRef, { ios: 0, android: 0 }, { merge: true });
+            }
+        } catch (e) {
+            console.warn("Stats init check:", e);
         }
     }
     initStats();
 
     // Listen for real-time count updates
-    onSnapshot(statsRef, (doc) => {
-        if (doc.exists()) {
-            const data = doc.data();
+    onSnapshot(statsRef, (docSnap) => {
+        if (docSnap.exists()) {
+            const data = docSnap.data();
             
-            countIosLabel.innerText = data.ios || 0;
-            badgeIos.classList.add('pop-animation');
-            
-            countAndroidLabel.innerText = data.android || 0;
-            badgeAndroid.classList.add('pop-animation');
-
-            setTimeout(() => {
-                badgeIos.classList.remove('pop-animation');
-                badgeAndroid.classList.remove('pop-animation');
-            }, 300);
+            if (countIosLabel && data.ios !== undefined) {
+                countIosLabel.innerText = data.ios;
+            }
+            if (countAndroidLabel && data.android !== undefined) {
+                countAndroidLabel.innerText = data.android;
+            }
         }
+    }, (error) => {
+        console.warn("Real-time stats listener error:", error);
     });
 
-    // Handle button click, increment stats, and redirect to store URL
-    async function trackClickAndRedirect(platform, event) {
-        event.preventDefault(); 
+    // Handle button click, increment stats, and show "still under works" popup
+    async function trackClickAndShowUnderWorks(platform, event) {
+        if (event) event.preventDefault();
 
-        try {
-            // 1. Fetch store ID from Firestore
-            const appInfoSnap = await getDoc(appInfoRef);
-            let redirectUrl = null;
-
-            if (appInfoSnap.exists()) {
-                const infoData = appInfoSnap.data();
-
-                if (platform === 'ios' && infoData.app_store_id) {
-                    redirectUrl = `https://apps.apple.com/app/id${infoData.app_store_id}`;
-                } else if (platform === 'android' && infoData.play_store_id) {
-                    redirectUrl = `https://play.google.com/store/apps/details?id=${infoData.play_store_id}`;
-                }
+        // 1. Instant optimistic counter increment on the UI
+        const targetLabel = platform === 'ios' ? countIosLabel : countAndroidLabel;
+        const targetBadge = platform === 'ios' ? badgeIos : badgeAndroid;
+        if (targetLabel) {
+            const current = parseInt(targetLabel.innerText);
+            if (!isNaN(current)) {
+                targetLabel.innerText = current + 1;
             }
+        }
+        if (targetBadge) {
+            targetBadge.classList.add('pop-animation');
+            setTimeout(() => targetBadge.classList.remove('pop-animation'), 300);
+        }
 
-            // 2. Increment the download stats
-            if (platform === 'ios') {
-                await updateDoc(statsRef, { ios: increment(1) });
-            } else {
-                await updateDoc(statsRef, { android: increment(1) });
-            }
-
-            // 3. Redirect to store or show "Coming Soon" modal if ID/URL is missing
-            if (redirectUrl) {
-                window.location.href = redirectUrl;
-            } else {
-                modal.classList.add('active');
-            }
-
-        } catch (error) {
-            console.error("Error updating stats or getting store link:", error);
-            // Fallback: show modal if an error occurs
+        // 2. Pop up modal saying the app is still under works
+        if (modal) {
             modal.classList.add('active');
+        }
+
+        // 3. Persist increment to Firestore
+        try {
+            const fieldToUpdate = platform === 'ios' ? { ios: increment(1) } : { android: increment(1) };
+            await setDoc(statsRef, fieldToUpdate, { merge: true });
+        } catch (error) {
+            console.warn("Could not sync increment to Firestore:", error);
         }
     }
 
-    btnIos.addEventListener('click', (e) => trackClickAndRedirect('ios', e));
-    btnAndroid.addEventListener('click', (e) => trackClickAndRedirect('android', e));
+    if (btnIos) btnIos.addEventListener('click', (e) => trackClickAndShowUnderWorks('ios', e));
+    if (btnAndroid) btnAndroid.addEventListener('click', (e) => trackClickAndShowUnderWorks('android', e));
 
-    btnCloseModal.addEventListener('click', () => modal.classList.remove('active'));
+    if (btnCloseModal) {
+        btnCloseModal.addEventListener('click', () => {
+            if (modal) modal.classList.remove('active');
+        });
+    }
     window.addEventListener('click', (e) => {
-        if (e.target === modal) modal.classList.remove('active');
+        if (modal && e.target === modal) modal.classList.remove('active');
     });
 </script>
 </body>
