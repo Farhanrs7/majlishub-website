@@ -47,10 +47,10 @@
                         <span>App Store</span>
                     </div>
                 </a>
-                <a href="#" id="btn-android" class="store-btn">
+                <a href="https://play.google.com/store/apps/details?id=com.majlishub.app" id="btn-android" class="store-btn" target="_blank" rel="noopener noreferrer">
                     <img src="https://upload.wikimedia.org/wikipedia/commons/d/d0/Google_Play_Arrow_logo.svg" alt="Google Play Logo">
                     <div class="btn-text">
-                        <span>GET IT NOW</span>
+                        <span>GET IT ON</span>
                         <span>Google Play</span>
                     </div>
                 </a>
@@ -195,7 +195,36 @@
         console.warn("Real-time stats listener error:", error);
     });
 
-    // Handle button click, increment stats, and show "still under works" popup
+    const PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=com.majlishub.app";
+
+    // Handle Android button click: increment stats and open Play Store
+    async function handleAndroidDownload(event) {
+        if (event) event.preventDefault();
+
+        // 1. Optimistic UI counter increment & animation
+        if (countAndroidLabel) {
+            const current = parseInt(countAndroidLabel.innerText);
+            if (!isNaN(current)) {
+                countAndroidLabel.innerText = current + 1;
+            }
+        }
+        if (badgeAndroid) {
+            badgeAndroid.classList.add('pop-animation');
+            setTimeout(() => badgeAndroid.classList.remove('pop-animation'), 300);
+        }
+
+        // 2. Persist increment to Firestore (with error tolerance)
+        try {
+            await setDoc(statsRef, { android: increment(1) }, { merge: true });
+        } catch (error) {
+            console.warn("Could not sync increment to Firestore:", error);
+        }
+
+        // 3. Open Play Store in new tab / redirect
+        window.open(PLAY_STORE_URL, '_blank', 'noopener,noreferrer');
+    }
+
+    // Handle iOS button click: increment stats and show "still under works" popup
     async function trackClickAndShowUnderWorks(platform, event) {
         if (event) event.preventDefault();
 
@@ -228,7 +257,7 @@
     }
 
     if (btnIos) btnIos.addEventListener('click', (e) => trackClickAndShowUnderWorks('ios', e));
-    if (btnAndroid) btnAndroid.addEventListener('click', (e) => trackClickAndShowUnderWorks('android', e));
+    if (btnAndroid) btnAndroid.addEventListener('click', handleAndroidDownload);
 
     if (btnCloseModal) {
         btnCloseModal.addEventListener('click', () => {
