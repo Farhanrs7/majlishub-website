@@ -40,7 +40,7 @@
             <p>Say goodbye to wedding stress. <span class="highlight">MajlisHub</span> is Malaysia's ultimate companion to discover top-rated local vendors, manage your smart checklist, and plan your big day flawlessly from your phone. Jom rancang bersama!</p>
             
             <div class="store-buttons" id="download">
-                <a href="#" id="btn-ios" class="store-btn">
+                <a href="https://apps.apple.com/my/app/majlishub/id6782508305" id="btn-ios" class="store-btn" target="_blank" rel="noopener noreferrer">
                     <img src="https://upload.wikimedia.org/wikipedia/commons/3/31/Apple_logo_white.svg" alt="Apple Logo">
                     <div class="btn-text">
                         <span>Download on the</span>
@@ -195,7 +195,35 @@
         console.warn("Real-time stats listener error:", error);
     });
 
+    const APP_STORE_URL = "https://apps.apple.com/my/app/majlishub/id6782508305";
     const PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=com.majlishub.app";
+
+    // Handle iOS button click: increment stats and open App Store
+    async function handleIosDownload(event) {
+        if (event) event.preventDefault();
+
+        // 1. Optimistic UI counter increment & animation
+        if (countIosLabel) {
+            const current = parseInt(countIosLabel.innerText);
+            if (!isNaN(current)) {
+                countIosLabel.innerText = current + 1;
+            }
+        }
+        if (badgeIos) {
+            badgeIos.classList.add('pop-animation');
+            setTimeout(() => badgeIos.classList.remove('pop-animation'), 300);
+        }
+
+        // 2. Persist increment to Firestore (with error tolerance)
+        try {
+            await setDoc(statsRef, { ios: increment(1) }, { merge: true });
+        } catch (error) {
+            console.warn("Could not sync increment to Firestore:", error);
+        }
+
+        // 3. Open App Store in new tab / redirect
+        window.open(APP_STORE_URL, '_blank', 'noopener,noreferrer');
+    }
 
     // Handle Android button click: increment stats and open Play Store
     async function handleAndroidDownload(event) {
@@ -224,7 +252,7 @@
         window.open(PLAY_STORE_URL, '_blank', 'noopener,noreferrer');
     }
 
-    // Handle iOS button click: increment stats and show "still under works" popup
+    // Handle button click fallback if needed
     async function trackClickAndShowUnderWorks(platform, event) {
         if (event) event.preventDefault();
 
@@ -256,7 +284,7 @@
         }
     }
 
-    if (btnIos) btnIos.addEventListener('click', (e) => trackClickAndShowUnderWorks('ios', e));
+    if (btnIos) btnIos.addEventListener('click', handleIosDownload);
     if (btnAndroid) btnAndroid.addEventListener('click', handleAndroidDownload);
 
     if (btnCloseModal) {
